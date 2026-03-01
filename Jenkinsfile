@@ -3,37 +3,49 @@ pipeline {
 
     tools {
         maven 'Maven3'
-        jdk 'JDK21'
     }
 
     stages {
 
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                echo 'Code pulled from GitHub'
+                checkout scm
             }
         }
 
-        stage('Build & Test') {
+        stage('Build') {
             steps {
-                sh 'mvn clean test'
+                sh 'mvn clean compile'
             }
         }
 
-        stage('Package') {
+        stage('Test') {
+            steps {
+                sh 'mvn test'
+            }
+        }
+
+        stage('Package JAR') {
             steps {
                 sh 'mvn package'
             }
         }
-    }
 
-    post {
-        success {
-            echo 'Build Successful'
-            archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+        stage('Create DEB') {
+            steps {
+                sh '''
+                fpm -s dir -t deb \
+                -n calculator-app \
+                -v 1.0 \
+                target/calculator-app-1.0-SNAPSHOT.jar=/usr/local/bin/calculator.jar
+                '''
+            }
         }
-        failure {
-            echo 'Build Failed'
+
+        stage('Archive Artifact') {
+            steps {
+                archiveArtifacts artifacts: '*.deb', fingerprint: true
+            }
         }
     }
 }
